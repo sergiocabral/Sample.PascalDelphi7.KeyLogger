@@ -1,0 +1,390 @@
+Hi,
+
+I have written a small program to detect all key presses using a KeyboardProc hook procedure.  The hook appears to be correctly called each time a key is pressed (both inside the application and from other applications as well) as expected.
+
+The problem is that the wParam should contain the virtual-key code of the key that generated the keystroke message.  However, when testing I find that the wParam always contains a value of 168420, regardless of which key is pressed.
+
+The purpose of writing the KeyboardProc is for me to be able to detect when Alt + S is pressed, but because wParam always contains 168420 regardless, I am unable to determine specific key presses.
+
+Could you please tell me why this is happening and how I can get the proper value of the key that was pressed in the KeyboardProc?
+
+Here is the source code:
+
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  StdCtrls;
+
+type
+  TForm1 = class(TForm)
+    Button1: TButton;
+    Button2: TButton;
+    Edit1: TEdit;
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+  private
+    { Private declarations }
+
+    Handle: HHOOK;
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.DFM}
+
+function KeyboardProc(code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; forward;
+
+procedure TForm1.Button1Click(Sender: TObject);
+begin
+  Handle := SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, 0, 0);
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+begin
+  UnhookWindowsHookEx(Handle);
+end;
+
+function KeyboardProc(code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT;
+begin
+  Form1.Caption := IntToStr(wParam); // Always shows 168420, regardless of which key is pressed!  Why is this?
+  Beep;
+  Result := 0;
+end;
+
+end.
+
+Thanks in Advance,
+
+Richard
+ 
+  
+   
+  
+  
+   
+   
+  Get your IT Solutions GUARANTEED! 
+Get instant answers from Experts Exchange knowledge base 
+keywords     
+   
+
+More IT professionals have found their answers instantly at Experts Exchange than at any other IT site 
+ASK AN EXPERT NOW 
+Choose a technology channel and SEARCH or ASK AN EXPERT 
+ Operating Systems:
+Linux
+X-Windows
+Macintosh
+MS-DOS
+OS/2
+Solaris
+Unix
+Windows 2000
+Windows NT
+Windows ME
+Windows XP
+Windows 98
+Windows 95 & 3.x
+Open BSD
+Windows Server 2003
+FreeBSD
+AIX IBMs UNIX OS
+Win CE
+SBS Small Business Server
+  Databases:
+MS Access
+Berkeley DB
+Crystal Reports
+FoxPro
+IBM UDB
+Interbase
+Microsoft SQL
+Mysql
+Oracle
+Sybase
+Btrieve
+FileMaker
+DB Reporting 
+GIS & GPS
+ERP
+PostgreSQL
+EAI
+  Storage:
+ 
+ Security:
+Linux Security
+Windows Security
+Unix Security
+Bugs and Alerts
+Firewalls
+ 
+ Programming:
+Game Dev.
+Platforms
+Languages
+Wireless
+Web Languages
+Software Design
+ 
+ Web Development:
+App Servers
+Web Dev. Software
+Web Servers
+Web Languages
+Browser Issues
+App Service Providers
+Online Marketing
+Hosting
+Graphics
+Lotus Domino Admin
+  Hardware:
+Routers
+Desktops
+Mac Comm.
+Modems
+New Users
+Microchips
+Printers
+Scanners
+Handhelds/Wireless
+Laptops/Notebooks
+Notebooks Wireless
+  Networking:
+Linux Net.
+Mac Net.
+Netware
+OS/2 Net.
+Unix Net.
+Win95 Net.
+WinNT Net.
+Email/GroupWare
+Broadband
+Microsoft Network
+VoIP/Voice over IP
+Video Conferencing
+Citrix
+Sharepoint
+ 
+ Applications:
+Mac Apps
+MS Office
+OS/2 Apps
+Viruses
+SAP
+Lotus Smart Suite
+Email
+Graphics
+WordPerfect Office Suite
+MultiMedia Applications
+Productivity Applications
+EAI
+Microsoft Project
+CAD
+CRM
+Groupwise
+ERP
+  Miscellaneous:
+Lounge
+Puzzles & Riddles
+Philosophy & Religion
+Math & Science
+URLs
+New Net Users
+Games
+  Community Support:
+EE Bugs
+Expert Input
+New Topics
+Suggestions
+New to EE?
+CleanUp
+Feedback
+ExpertCare
+ 
+  
+   
+   
+ Accepted Answer from gmayo 
+Date: 09/10/2003 02:31PM PDT
+Grade: A
+ Accepted Answer  
+
+
+Odd... won't run at all on mine (XP/D7Pro) - SetWindowsHookEx fails.
+
+Anyway, are you following the procedures laid out in http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/WinUI/WindowsUserInterface/Windowing/Hooks/HookReference/HookFunctions/KeyboardProc.asp for handling the return code? If not, it may be possible that you're simply getting the same message over and over again because it's not being handled properly.
+
+Geoff M.
+ 
+Comment from gmayo 
+Date: 09/10/2003 02:41PM PDT
+ Comment  
+
+
+Need a thread in the SetWindowsHookEx... but I do get the same problem. Not even the scan code changes. My VK code is 40 though.
+
+Geoff M.
+ 
+Assisted Answer from knightmad 
+Date: 09/10/2003 02:59PM PDT
+Grade: A
+ Assisted Answer  
+
+
+I also notice there is an error when executing your code in Win2000/Delphi7. I modified a part of your code to see what was happenning, look:
+
+procedure TForm1.Button1Click(Sender: TObject);
+begin
+  SetLastError(0);
+  Handle := SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, HInstance, 0);
+  if GetLastError <> 0 then
+    showmessage(SysErrorMessage(GetLastError));
+end;
+
+The error I got was 1248, the message showed to me is in portuguese, but the translation would be something like "Isn't possible to define a non-local hook without a module identifier", or smtg like this. I looked for SetWindowsHookEX in Windows SDK help and I got this:
+
+"An error may occur if the hMod parameter is NULL and the dwThreadId parameter is zero or specifies the identifier of a thread created by another process."
+
+It seems like you cannot use SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, 0, 0);
+
+The options are
+
+SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, HInstance, 0); // defines a non-local hook
+
+or 
+
+SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, 0, GetCurrentThreadID); // defines a local hook
+
+But if you say it is working ...
+
+The error is that Keyboardproc must be stdcall, the declaration should be like this:
+
+function KeyboardProc(code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall; forward;
+ 
+Comment from knightmad 
+Date: 09/10/2003 03:01PM PDT
+ Comment  
+
+
+This code is working for local-hooks:
+
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  StdCtrls;
+
+type
+  TForm1 = class(TForm)
+    Button1: TButton;
+    Button2: TButton;
+    Edit1: TEdit;
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+  private
+    { Private declarations }
+    HookHandle: HHOOK;
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.DFM}
+
+function KeyboardProc(code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall; forward;
+
+procedure TForm1.Button1Click(Sender: TObject);
+var i: integer;
+begin
+     SetLastError(0);
+  HookHandle := SetWindowsHookEx(WH_KEYBOARD, @KeyboardProc, 0, GetCurrentThreadID);
+  i := getlasterror;
+  if i <> 0 then
+       showmessage(SysErrorMessage(i));
+end;
+
+procedure TForm1.Button2Click(Sender: TObject);
+begin
+  UnhookWindowsHookEx(HookHandle);
+end;
+
+function KeyboardProc(code: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall;
+begin
+     if code = HC_ACTION then // Look Windows SDK help for more information about the parameters
+    Form1.Caption := Format('WParam: %x LParam: %x',[wParam, lparam]);
+  result := CallNextHookEx(Form1.HookHandle, code, wparam, lparam); // Pass the hook forward
+end;
+
+end.
+
+ 
+Comment from knightmad 
+Date: 09/10/2003 03:03PM PDT
+ Comment  
+
+
+for non-local hook, I think you have to put your hook function inside a DLL. Look at an example I wrote (low level hooking, to detect/disable Alt_Tab, win keys, etc..) in 
+
+http://geocities.yahoo.com.br/armlessjohn/Hidden_Resources.html
+ 
+Comment from Richard2000 
+Date: 09/11/2003 01:40PM PDT
+ Author Comment  
+
+
+Hi,
+
+Thank you for your comments.
+
+I am testing on Windows '98 SE using Delphi 4 Pro.  Maybe this is why SetWindowsHookEx does not return an error for me, but does for others.  In my testing, the hook fires each time a key is pressed (both locally and globally), but does not return the correct virtual-key code (168420 is returned every time).
+
+After reading your comments, I've decided not to use SetWindowsHookEx in my project.  I believe that the disadvantages (e.g. working on some systems but not others, virtual-key code not being determined correctly, possibly having to create a separate DLL and/or thread) outweigh the benefits of using it in my project.  Even if I did get it working correctly on my system, it may not work the same on other systems.
+
+Richard
+ 
+Comment from knightmad 
+Date: 09/11/2003 04:16PM PDT
+ Comment  
+
+
+Richard: the cause of this error you're getting is that you MUST to make you keyboardproc stdcall, I am sure about this.  But you're right, if the solution isn't fitting to your needs, you should abandon it. But I recommend you to continue using SetWindowsHookEx if you want to trap Alt+S key globally, the only penalty you have is to create a DLL, a simple thing to do with experts help : ) I made a keyboard hook to trap Alt+Tab, Ctrl+Esc and such keys globally, I put it  (sources and binaries) in the page I posted the link. Work in almost all Windows, at least the newer versions.
+ 
+Administrative Comment from kacor 
+Date: 07/12/2004 10:45AM PDT
+ Administrative Comment  
+
+
+No comment has been added to this question in more than 21 days, so it is now classified as abandoned.
+
+I will leave the following recommendation for this question in the Cleanup topic area:
+   Split: gmayo {http:#9332444} & knightmad {http:#9332610}
+
+Any objections should be posted here in the next 4 days. After that time, the question will be closed. 
+
+kacor
+EE Cleanup Volunteer
+ 
+Administrative Comment from GhostMod 
+Date: 07/16/2004 11:26AM PDT
+ Administrative Comment  
+
+
+Forced accept
+
+GhostMod
+ 
+ 

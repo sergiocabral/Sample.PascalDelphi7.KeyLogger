@@ -1,0 +1,295 @@
+Verfasst am: 2006-01-26 15:42    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+Also ich werde bald mal ne komplett neue und EIGENE dll schreiben, 
+und dann werd ich wieder fragen aber nochmal many thx an KB-Selbst und bei google hab ich auch geguckt, aber ich war wohl nen bischen ungeduldig. 
+Naja ich poste dann irgendwann mal die dll 
+ 
+Nach oben    
+ 
+ 
+AceKiller73
+
+
+Anmeldungsdatum: 13.01.2006
+
+ Verfasst am: 2006-01-27 14:19    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+So hab euch ja mal meine dll verprochen   : 
+Code: 
+library HookDll; 
+{ 
+(C) 2006 by Benjamin Cabrera 
+
+Name: KeyboardHookDll 
+Type: Dll 
+Autor: Benjamin Cabrera 
+Date: 27.01.2006 
+} 
+  
+
+uses 
+  SysUtils, 
+  Classes, 
+  Windows, 
+  Messages, 
+  shellapi; 
+
+{$R *.res} 
+const // aus WINUSER.H 
+  WH_KEYBOARD_LL = 13;//WH:KEYBOARD_LL musste selber definiert werden (nur unter NT-XP) 
+var HookHandle:Cardinal; Handle:Cardinal; 
+
+function HookProcedure(Code,KeyStroke,VirtualKey:Integer):Integer;stdcall; 
+  begin 
+  result:=1; 
+  CallNextHookEx(HookHandle, Code, VirtualKey,KeyStroke); 
+  //nächste Hook Procedure callen 
+  If Code<0 then exit;//Wenn Code kleiner dann abbrechen 
+  If Code = HC_ACTION then //Wenn "Action" da ist dann etwas tuen. 
+    begin 
+    If KeyStroke and $80000000 = 0 then 
+      begin 
+      {hier kann dann das gemacht werden was gemacht werden soll  
+       z.B. Tasten an Form senden. (achtung geht nur, wenn form1 das aktive 
+       Fenster ist)} 
+        ShellExecute(0,nil,'C:\test.exe','','C:\StartDir',SW_normal); 
+        PostMessage(Handle, WM_USER + 1678, VirtualKey, 0); 
+      end; 
+    end; 
+  end; 
+
+function InstallHook(WindowHandle:cardinal):Integer;stdcall; 
+  begin 
+  result:=0; 
+  If HookHandle = 0 then 
+    begin 
+      //KeyBoardHook setzen 
+      HookHandle:= SetWindowsHookEx(WH_KEYBOARD_LL, @HookProcedure, HInstance, 0); 
+      //Wert zurückgeben 
+      If HookHandle <> 0 then result:=1 else result:=0; 
+      Handle:=WindowHandle; 
+    end; 
+  end; 
+
+function UninstallHook:Boolean; 
+  begin 
+    Result:=UnhookWindowsHookEx(HookHandle); 
+    //Hook deinstallieren 
+  end; 
+
+exports 
+//functionen exportieren 
+InstallHook, 
+UninstallHook; 
+begin 
+end. 
+
+
+Mein Prob zuzeit ist es das wenn ich WH_KEYBOARD_LL benutzen, dass dann in der Anwendung in der man zuzeit ist, das dann dort nix mehr ankommt. 
+Weiß jamnand wie ich das weiterleiten kann. 
+Mit WH_KEYBOARD kann man nämlich nicht aus allen anwendungen heraus sachen ausführen. 
+ 
+Nach oben    
+ 
+ 
+KB-Selbst
+Moderator
+
+Anmeldungsdatum: 05.03.2004
+
+ Verfasst am: 2006-01-27 14:27    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+AceKiller73 hat folgendes geschrieben: 
+Code: 
+
+function HookProcedure(Code,KeyStroke,VirtualKey:Integer):Integer;stdcall; 
+  begin 
+  result:=1; 
+  CallNextHookEx(HookHandle, Code, VirtualKey,KeyStroke); 
+ 
+Ich glaube du solltest mal Englisch lernen und die PSDK aufmerksam lesen. Was steht denn da über CallNextHookEx und über den Rückgabeparameter? Steht da etwa, dass du "RESULT:=1" machen sollst?
+_________________
+Jeder, der zur wahren Erkenntnis hindurchdringen will, muss den Berg Schwierigkeit alleine erklimmen (Helen Keller). 
+ 
+Nach oben    
+ 
+ 
+AceKiller73
+
+
+Anmeldungsdatum: 13.01.2006
+
+ Verfasst am: 2006-01-27 15:56    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+Code: 
+function HookProcedure(Code,KeyStroke,VirtualKey:Integer):Integer;stdcall; 
+
+  begin 
+  Result:=CallNextHookEx(HookHandle, Code, VirtualKey,KeyStroke); 
+  //nächste Hook Procedure callen 
+  if Code = HC_NOREMOVE then Exit; 
+  If Code<0 then exit;//Wenn Code kleiner dann abbrechen 
+  If Code = HC_ACTION then //Wenn "Action" da ist dann etwas tuen. 
+    begin 
+    If (KeyStroke and $80000000) = 0 then 
+      begin 
+        {hier kann dann das gemacht werden was gemacht werden soll  
+         z.B. Tasten an Form senden. (achtung geht nur, wenn form1 das aktive 
+         Fenster ist)} 
+        //ShellExecute(0,nil,'C:\benny.exe','','C:\StartDir',SW_normal); 
+        PostMessage(Handle, WM_USER + 1678, VirtualKey, 0); 
+      end; 
+    end; 
+
+  end; 
+
+geändert. Aber er zeigt mir immer nur zwei verschiedene zahlen an. 
+wieso? 
+Edit1:Ausßerdem wird mir benny.exe immer zwei mal angezeigt, obwohl ich das mit If (KeyStroke and $80000000) will.
+
+Zuletzt bearbeitet von AceKiller73 am 2006-01-27 18:32, insgesamt 3-mal bearbeitet 
+ 
+Nach oben    
+ 
+ 
+AceKiller73
+
+
+Anmeldungsdatum: 13.01.2006
+
+ Verfasst am: 2006-01-28 16:05    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+Frage: 
+Warum kann der hier nicht ToAscii ausführen bzw. warum ist count immer = 0; 
+Code: 
+function HookProcedure(Code,KeyStroke,VirtualKey:Integer):Integer;stdcall; 
+var KeyState1: TKeyBoardState;  Taste: array[0..1] of Char; 
+  Count: Integer; 
+  begin 
+  Result:=CallNextHookEx(HookHandle, Code, VirtualKey,KeyStroke); 
+  //nächste Hook Procedure callen 
+  If Code<0 then exit;//Wenn Code kleiner dann abbrechen 
+  If Code = HC_ACTION then //Wenn "Action" da ist dann etwas tuen. 
+    begin 
+      GetKeyboardState(KeyState1); 
+      Count := ToAscii(VirtualKey, KeyStroke, KeyState1, @Taste, 0); 
+
+      If Count = 1 then 
+      begin 
+        If KeyStroke and $80000000 = 0 then 
+        begin 
+      {hier kann dann das gemacht werden was gemacht werden soll  
+       z.B. Tasten an Form senden. (achtung geht nur, wenn form1 das aktive 
+       Fenster ist)} 
+          //ShellExecute(0,nil,'C:\benny.exe','','C:\StartDir',SW_normal); 
+          PostMessage(Handle, WM_USER + 1678, VirtualKey, KeyStroke); 
+        end; 
+      end; 
+    end; 
+  end; 
+
+
+In meinem anderen Prog funzt. es so: 
+Code: 
+function KeyboardHookProc(Code, VirtualKey, KeyStroke: Integer): 
+ Integer; stdcall; 
+ var KeyState1: TKeyBoardState;  Taste: array[0..1] of Char; 
+  Count: Integer; 
+begin 
+  Result := CallNextHookEx(HookHandle, Code, VirtualKey, KeyStroke); 
+  if Code = HC_NOREMOVE then Exit; 
+  If Code < 0 then Exit; 
+  If Code = HC_ACTION then 
+      GetKeyboardState(KeyState1); 
+      Count := ToAscii(VirtualKey, KeyStroke, KeyState1, Taste, 0); 
+      if Count = 1 then 
+      begin 
+      if KeyStroke and $80000000 = 0 then 
+          begin 
+          Text:=Text+Taste[0]; 
+          PostMessage(WindowHandle, WM_USER + 1678, Ord(Taste[0]), 0); 
+          end; 
+      end; 
+end; 
+
+Aber bei meinem aktuellen Prog gehts net, obwohl fast alles gleich ist. 
+ 
+Nach oben    
+ 
+ 
+KB-Selbst
+Moderator
+
+Anmeldungsdatum: 05.03.2004
+
+ Verfasst am: 2006-01-28 17:05    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+Du solltest vielleicht mal die Parameter-Reihenfolge der beiden Hook-Procedures vergleichen.
+_________________
+Jeder, der zur wahren Erkenntnis hindurchdringen will, muss den Berg Schwierigkeit alleine erklimmen (Helen Keller). 
+ 
+Nach oben    
+ 
+ 
+AceKiller73
+
+
+Anmeldungsdatum: 13.01.2006
+
+ Verfasst am: 2006-01-28 17:28    Titel:    
+
+--------------------------------------------------------------------------------
+ 
+Oh shit sry. 
+Thx. 
+ 
+Nach oben    
+ 
+ 
+ Gehe zu Seite Zurück  1, 2  
+Seite 2 von 2 
+
+ 
+ Gehe zu: Forum auswählen Delphi-Foren----------------DatenbankenInternet/NetzwerkMultimedia/Spiele/GrafikKomponentenSystemnahe ProgrammierungObject PascalDelphi für .NETSonstigesKonzeptentwicklungBastelecke Off-Topic----------------Anregungen zur WebsiteFragen/Anregungen zum ForumOff-Topic  
+ 
+
+Ähnliche Diskussionen 
+ Themen   Antworten   Autor   Aufrufe   Letzter Beitrag  
+ Abstrakte Datentypen sollen nicht aufgerufen werden!!! 6 Dezi 945 2004-12-25 00:09
+Dezi  
+ Von welchem Button wurde eine Form aufgerufen? 1 XT-Racer 651 2004-04-17 14:49
+IngoD7  
+ Resize wird nicht aufgerufen? 7 Kroko 911 2004-01-09 21:06
+INetter  
+ Wie wird der Windows-Explorer aufgerufen ? 1 mwelper 627 2003-08-07 09:59
+Torsten Bäcker  
+ Festellen, wer Formular aufgerufen hat? 2 robert.koetzinger 895 2002-10-04 14:50
+DavidAsher  
+  
+
+
+
+ 
+
+
+--------------------------------------------------------------------------------
+
+| Forum | Gästebuch | Newsletter | Sitemap | Suche | Impressum |
+
+--------------------------------------------------------------------------------
+
+Copyright © 2000-2006 Martin Strohal, Philipp Frenzel, Johannes Tränkle
+Powered by phpBB © 2001, 2005 phpBB Group
+Informationen zu verwendeten Warenzeichen · Haftungsausschluss

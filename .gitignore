@@ -1,0 +1,13 @@
+/*/*.exe
+/*/*.dll
+*.~*
+*.dcu
+*.ddp
+*.cfg
+*.dof
+*.local
+*.identcache
+/ThirdParty.NonoKeyLogger/keylog.txt
+
+!_extras
+!_build
